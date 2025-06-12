@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2em;">
+    <div>
+        <h2 style="margin-bottom: 0.1em; color: #6366f1; font-size: 1.7em;">
+            <span style="font-size:1.2em;">👋</span> Hello, <span style="color:#06b6d4">{{ user.username }}</span>
+        </h2>
+        <div style="color:#64748b; font-size:1.08em;">Here's your personal planner for today</div>
+    </div>
+    <a href="{{ url_for('main.logout') }}" style="background:#64748b;color:#fff;padding:10px 18px;border-radius:7px;text-decoration:none;font-weight:600;box-shadow:0 1px 8px #e0e7ef;">Logout</a>
+</div>
+
+<div style="background: #f1f5fa; border-radius: 18px; box-shadow:0 2px 18px #e0e7ef; padding: 28px 18px 20px 18px; margin-bottom: 2em;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;">
+        <span style="font-size:1.3em;color:#6366f1;">➕</span>
+        <h3 style="margin:0;color:#6366f1;font-size:1.13em;">Add New Task</h3>
+    </div>
+    <form method="POST" action="{{ url_for('main.add_task') }}" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" name="title" placeholder="Task Title" required style="flex:2 1 120px;min-width:0;padding:10px;border-radius:7px;border:1px solid #c7d4eb;">
+        <input type="time" name="time_slot" required style="flex:1 1 60px;min-width:0;padding:10px;border-radius:7px;border:1px solid #c7d4eb;">
+        <input type="number" name="duration" placeholder="Duration (min)" min="1" required style="flex:1 1 60px;min-width:0;padding:10px;border-radius:7px;border:1px solid #c7d4eb;">
+        <button type="submit" style="background:#6366f1;color:#fff;border:none;border-radius:7px;padding:10px 22px;font-weight:600;box-shadow:0 1px 8px #e0e7ef;cursor:pointer;">Add</button>
+    </form>
+</div>
+
+<div style="background: #fff; border-radius: 18px; box-shadow:0 2px 18px #e0e7ef; padding: 24px 18px 18px 18px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;">
+        <span style="font-size:1.18em;color:#6366f1;">📋</span>
+        <h3 style="margin:0;color:#6366f1;font-size:1.13em;">Your Tasks</h3>
+    </div>
+    <div>
+        {% for task in tasks %}
+        <div data-time="{{ task.time_slot }}" data-title="{{ task.title }}" style="display:flex;align-items:center;justify-content:space-between;background:#f6f9ff;border-radius:13px;padding:16px 12px;margin-bottom:14px;box-shadow:0 1px 7px #e0e7ef;">
+            <div>
+                <div style="display:flex;align-items:center;gap:7px;">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#06b6d4);"></span>
+                    <span style="font-weight:600;color:#6366f1;">{{ task.title }}</span>
+                </div>
+                <div style="color:#64748b;font-size:.98em;margin-left:18px;margin-top:2px;">
+                    🕒 {{ task.time_slot }} &nbsp; | &nbsp; ⏱ {{ task.duration }} min
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button onclick="enableReminder(this)" style="background:#06b6d4;color:#fff;border:none;border-radius:7px;padding:7px 10px;font-weight:600;cursor:pointer;" title="Enable voice reminder">🔔</button>
+                <a class="delete" href="{{ url_for('main.delete_task', task_id=task.id) }}" style="background:#ef4444;color:#fff;border-radius:7px;padding:7px 10px;text-decoration:none;cursor:pointer;font-weight:600;" title="Delete">🗑</a>
+            </div>
+        </div>
+        {% else %}
+        <p style="color:#64748b;text-align:center;margin:24px 0 0 0;font-size:1.05em;">No tasks yet. Add one above!</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function enableReminder(btn) {
+    const card = btn.closest('[data-time]');
+    const taskTime = card.getAttribute('data-time');
+    const taskTitle = card.getAttribute('data-title');
+    const taskId = card.querySelector('a.delete').getAttribute('href').split('/').pop();
+    btn.disabled = true;
+    btn.textContent = "🔔 On";
+
+    let reminderStarted = false;
+    let reminderCount = 0;
+    let reminderTimeouts = [];
+
+    const interval = setInterval(() => {
+        if (reminderStarted) return;
+        const now = new Date();
+        const nowStr = now.toTimeString().slice(0,5);
+        if (nowStr === taskTime) {
+            reminderStarted = true;
+            speakAndRepeat();
+        }
+    }, 20000);
+
+    function speakAndRepeat() {
+        function speakReminder() {
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(taskTitle));
+            reminderCount++;
+            if (reminderCount < 3) {
+                const timeout = setTimeout(speakReminder, 10000);
+                reminderTimeouts.push(timeout);
+            } else {
+                clearInterval(interval);
+                reminderTimeouts.forEach(clearTimeout);
+                // Auto-delete task via AJAX
+                fetch(`/delete_task/${taskId}`, {method: 'POST'})
+                  .then(() => card.remove());
+            }
+        }
+        speakReminder();
+    }
+}
+</script>
+{% endblock %}
