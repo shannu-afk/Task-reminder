@@ -127,11 +127,7 @@ smart-planner/
 
 ---
 
-## ✨ Screenshots
 
-![Login](screenshots/login.png)
-![Dashboard](screenshots/dashboard.png)
-![Add Task](screenshots/add_task.png)
 
 ---
 
